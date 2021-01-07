@@ -1,5 +1,6 @@
 package com.uits.takephoto
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -10,11 +11,15 @@ import android.graphics.BitmapFactory
 import android.graphics.Point
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
+import android.util.DisplayMetrics
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import java.io.File
+import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.*
 
 
@@ -22,6 +27,7 @@ const val REQUEST_IMAGE_CAPTURE = 100
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var currentPhotoPath: String
     private lateinit var photoUri: Uri
     private lateinit var photoFile: File
     private lateinit var mBtnPhoto: Button
@@ -44,6 +50,13 @@ class MainActivity : AppCompatActivity() {
      */
     private fun dispatchTakePictureIntent() {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        val file = createImageFile()
+        val photoURI: Uri = FileProvider.getUriForFile(
+            this,
+            "com.uits.takephoto.fileprovider",
+            file
+        )
+        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
         try {
             startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
         } catch (e: ActivityNotFoundException) {
@@ -77,14 +90,39 @@ class MainActivity : AppCompatActivity() {
             val imageBitmap = data?.extras?.get("data") as Bitmap
             //imageView.setImageBitmap(imageBitmap)
 
-            val bitmap: Bitmap = getScaledBitmap(photoFile.getPath(), this)!!
+           // val bitmap: Bitmap = getScaledBitmap(photoFile.getPath(), this)!!
+        }
+    }
+
+    @SuppressLint("SimpleDateFormat")
+    @Throws(IOException::class)
+    private fun createImageFile(): File {
+        // Create an image file name
+        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        val storageDir: File = getExternalFilesDir(Environment.DIRECTORY_PICTURES)!!
+        return File.createTempFile(
+            "JPEG_${timeStamp}_", /* prefix */
+            ".jpg", /* suffix */
+            storageDir /* directory */
+        ).apply {
+            // Save a file: path for use with ACTION_VIEW intents
+            currentPhotoPath = absolutePath
         }
     }
 
     fun getScaledBitmap(path: String?, activity: Activity): Bitmap? {
         val size = Point()
-        activity.windowManager.defaultDisplay
-                .getSize(size)
+        val outMetrics = DisplayMetrics()
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val display = activity.display
+            display?.getRealMetrics(outMetrics)
+        } else {
+            @Suppress("DEPRECATION")
+            val display = activity.windowManager.defaultDisplay
+            @Suppress("DEPRECATION")
+            display.getMetrics(outMetrics)
+        }
         return getScaledBitmap(path, size.x, size.y)
     }
 
