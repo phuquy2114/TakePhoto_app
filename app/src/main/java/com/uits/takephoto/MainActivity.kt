@@ -6,6 +6,8 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.content.res.Configuration
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Point
@@ -15,6 +17,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.DisplayMetrics
 import android.widget.Button
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import java.io.File
@@ -30,6 +33,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var currentPhotoPath: String
     private lateinit var photoUri: Uri
     private lateinit var photoFile: File
+
+    private lateinit var mImgAvatar: ImageView
     private lateinit var mBtnPhoto: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,6 +42,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         mBtnPhoto = findViewById(R.id.mBtnPhoto) as Button
+        mImgAvatar = findViewById(R.id.mImgAvatar) as ImageView
 
 
         mBtnPhoto.setOnClickListener {
@@ -72,13 +78,23 @@ class MainActivity : AppCompatActivity() {
         photoUri = FileProvider.getUriForFile(this, "com.uits.takephoto.fileprovider", photoFile)
         val packageManager: PackageManager = this.packageManager
         val captureImage = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        val resolveActivity: ResolveInfo = packageManager.resolveActivity(captureImage, PackageManager.MATCH_DEFAULT_ONLY) ?: return
+        val resolveActivity: ResolveInfo = packageManager.resolveActivity(
+            captureImage,
+            PackageManager.MATCH_DEFAULT_ONLY
+        ) ?: return
 
         captureImage.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
-        val cameraActivities: List<ResolveInfo> = packageManager.queryIntentActivities(captureImage, PackageManager.MATCH_DEFAULT_ONLY)
+        val cameraActivities: List<ResolveInfo> = packageManager.queryIntentActivities(
+            captureImage,
+            PackageManager.MATCH_DEFAULT_ONLY
+        )
 
         for (cameraActivity in cameraActivities) {
-            this.grantUriPermission(cameraActivity.activityInfo.packageName, photoUri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            this.grantUriPermission(
+                cameraActivity.activityInfo.packageName,
+                photoUri,
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
         }
         startActivityForResult(captureImage, REQUEST_IMAGE_CAPTURE)
     }
@@ -90,7 +106,7 @@ class MainActivity : AppCompatActivity() {
             val imageBitmap = data?.extras?.get("data") as Bitmap
             //imageView.setImageBitmap(imageBitmap)
 
-           // val bitmap: Bitmap = getScaledBitmap(photoFile.getPath(), this)!!
+            // val bitmap: Bitmap = getScaledBitmap(photoFile.getPath(), this)!!
         }
     }
 
@@ -126,10 +142,16 @@ class MainActivity : AppCompatActivity() {
         return getScaledBitmap(path, size.x, size.y)
     }
 
-    fun getScaledBitmap(path: String?, destWidth: Int, destHeight: Int): Bitmap? { // Read in the dimensions of the image on disk
+    fun getScaledBitmap(
+        path: String?,
+        destWidth: Int,
+        destHeight: Int
+    ): Bitmap? { // Read in the dimensions of the image on disk
+
         var options = BitmapFactory.Options()
         options.inJustDecodeBounds = true
         BitmapFactory.decodeFile(path, options)
+
         val srcWidth = options.outWidth.toFloat()
         val srcHeight = options.outHeight.toFloat()
         // Figure out how much to scale down by
@@ -144,4 +166,27 @@ class MainActivity : AppCompatActivity() {
         // Read in and create final bitmap
         return BitmapFactory.decodeFile(path, options)
     }
+
+    fun setLocale(activity: Activity, languageCode: String?) {
+        val locale = Locale(languageCode)
+        Locale.setDefault(locale)
+        val resources: Resources = activity.resources
+        val config: Configuration = resources.getConfiguration()
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            config.setLocale(locale)
+        }
+        resources.updateConfiguration(config, resources.getDisplayMetrics())
+    }
+
+    fun updateImageView(bitmap : Bitmap) {
+        if (photoFile.exists()) {
+            mImgAvatar.setImageBitmap(bitmap)
+            mImgAvatar.contentDescription = "Hình ảnh của bạn chọn đã thành công "
+        } else {
+            mImgAvatar.setImageBitmap(null)
+            mImgAvatar.contentDescription = "Hình ảnh của bạn chọn bị thất bại "
+        }
+    }
 }
+
